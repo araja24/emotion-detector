@@ -1,0 +1,8 @@
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+# 1.20.1: newer builds crash on import with older Visual C++ runtimes (< 14.40) on Windows.
+onnxruntime==1.20.1
+opencv-python-headless==5.0.0.93
+numpy==2.5.4
+pytest==9.1.1
+httpx==0.28.1

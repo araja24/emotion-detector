@@ -1,0 +1,369 @@
+:root {
+  --bg: #0b0f14;
+  --surface: #121821;
+  --border: #1f2a37;
+  --text: #e6edf3;
+  --muted: #8b98a8;
+  --accent: #22d3ee;
+  --danger: #f87171;
+
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app__header h1 {
+  font-size: 1.5rem;
+}
+
+.app__main {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 800px) {
+  .app__main {
+    grid-template-columns: 1fr;
+  }
+}
+
+.app__footer {
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* Camera: the video and (later) the dot canvas share one box. */
+.camera {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.camera__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror, so it feels like a mirror */
+}
+
+/* Same size, fit and mirroring as the video, so every dot lands on the face. */
+.camera__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.camera__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(11, 15, 20, 0.75);
+  font-size: 0.9rem;
+}
+
+.stat {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+}
+
+.camera__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  text-align: center;
+  background: var(--surface);
+}
+
+.camera__error {
+  color: var(--danger);
+  max-width: 40ch;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel h2 {
+  font-size: 1.1rem;
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #001018;
+  cursor: pointer;
+}
+
+.button:hover {
+  filter: brightness(1.1);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--accent);
+}
+
+.note {
+  font-size: 0.85rem;
+}
+
+.panel__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.model-picker select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  max-width: 100%;
+}
+
+.model-picker select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Camera + its switches */
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.toggle__switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 150ms;
+}
+
+.toggle__switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform 150ms;
+}
+
+.toggle input:checked + .toggle__switch {
+  background: var(--accent);
+}
+
+.toggle input:checked + .toggle__switch::after {
+  transform: translateX(14px);
+  background: #001018;
+}
+
+.toggle input:focus-visible + .toggle__switch {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.button--small {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+}
+
+/* Status pills */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+}
+
+.badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge--good {
+  color: #4ade80;
+}
+
+.badge--wait {
+  color: #facc15;
+}
+
+.badge--bad {
+  color: var(--danger);
+}
+
+.badge--off {
+  color: var(--muted);
+}
+
+/* Emotion bars */
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 1.6em 5.5em 1fr 3.2em;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: var(--muted);
+  transition:
+    background 200ms,
+    color 200ms;
+}
+
+.bar--top {
+  background: rgba(34, 211, 238, 0.08);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.bar__emoji {
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.bar__track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 150ms linear;
+}
+
+.bar__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

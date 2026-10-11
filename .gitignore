@@ -1,0 +1,13 @@
+# Python
+backend/.venv/
+__pycache__/
+.pytest_cache/
+
+# Model files (downloaded, too big for git)
+backend/models/*.onnx
+frontend/public/models/*.task
+
+# Node
+node_modules/
+dist/
+frontend/public/mediapipe/
