@@ -1,0 +1,20 @@
+# Render Blueprint: one web service that serves the React site AND the
+# FastAPI backend (/ws, /health) from the same address.
+# Deploy: push to GitHub, then Render Dashboard > New > Blueprint > pick this repo.
+services:
+  - type: web
+    name: emotion-detector
+    runtime: python
+    plan: free
+    buildCommand: bash build.sh
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      # Which emotion models to download and load (first = default).
+      # Just B0 keeps memory comfortably inside the free plan's 512 MB.
+      # For the model picker on a bigger plan: hsemotion-b0,hsemotion-b2,ferplus
+      - key: EMOTION_MODELS
+        value: hsemotion-b0

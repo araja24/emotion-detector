@@ -11,3 +11,7 @@ frontend/public/models/*.task
 node_modules/
 dist/
 frontend/public/mediapipe/
+
+# Node downloaded by build.sh on Render
+.node/
+*.part

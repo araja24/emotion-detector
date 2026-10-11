@@ -192,8 +192,9 @@ function App() {
       </main>
 
       <footer className="app__footer muted">
-        Your video never leaves this computer except as small face crops sent to your own local backend, and
-        nothing is saved. Emotion guesses come from facial expressions only and can be wrong.
+        Your video stays in your browser. Only small face crops are sent to this app's server, where they are
+        analysed in memory and immediately discarded — nothing is saved. Emotion guesses come from facial
+        expressions only and can be wrong.
       </footer>
     </div>
   )

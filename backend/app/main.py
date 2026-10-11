@@ -1,21 +1,30 @@
 """The backend "kitchen": a FastAPI app the React frontend talks to."""
 
 import json
+import mimetypes
+import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from app.emotion_model import DEFAULT_MODEL_ID, EmotionModel, load_available_models
+from app.emotion_model import EmotionModel, load_available_models, parse_model_ids
 from app.preprocess import InvalidImageError, decode_image
+
+# The built React site (`npm run build`). Served by this app in production so the
+# page and /ws share one address; in development Vite serves the page instead.
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the models once at startup — not once per picture.
-    app.state.models = load_available_models()
+    # EMOTION_MODELS (e.g. "hsemotion-b0") limits which ones, to save memory on small servers.
+    app.state.models = load_available_models(parse_model_ids(os.environ.get("EMOTION_MODELS")))
     yield
 
 
@@ -47,7 +56,7 @@ async def emotions_socket(websocket: WebSocket):
     """
     await websocket.accept()
     models: dict[str, EmotionModel] = websocket.app.state.models
-    model_id = DEFAULT_MODEL_ID
+    model_id = next(iter(models))  # the first loaded model is the default
     await websocket.send_json(
         {"models": [{"id": i, "name": m.spec.name} for i, m in models.items()], "model": model_id}
     )
@@ -82,3 +91,16 @@ async def emotions_socket(websocket: WebSocket):
             await websocket.send_json({**reply, "model": model_id})
     except WebSocketDisconnect:
         pass
+
+
+def mount_frontend(app: FastAPI, dist: Path) -> bool:
+    """Serve the built website at "/". Routes defined earlier (/health, /ws) still take priority."""
+    if not (dist / "index.html").exists():
+        return False
+    # Browsers only stream-compile WebAssembly (MediaPipe's engine) when it has this exact type.
+    mimetypes.add_type("application/wasm", ".wasm")
+    app.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
+    return True
+
+
+mount_frontend(app, FRONTEND_DIST)

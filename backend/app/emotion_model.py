@@ -94,8 +94,22 @@ def load_model(model_id: str, models_dir: Path = MODELS_DIR) -> EmotionModel:
     return EmotionModel(spec, path)
 
 
-def load_available_models() -> dict[str, EmotionModel]:
-    """Loads every model whose file is present. The default model is required."""
+def parse_model_ids(value: str | None) -> list[str] | None:
+    """The EMOTION_MODELS setting, e.g. "hsemotion-b0,ferplus". Empty/unset means "all available"."""
+    ids = [part.strip() for part in (value or "").split(",") if part.strip()]
+    unknown = [i for i in ids if i not in MODEL_SPECS]
+    if unknown:
+        raise ValueError(f"Unknown model(s) in EMOTION_MODELS: {', '.join(unknown)}. Choose from: {', '.join(MODEL_SPECS)}")
+    return ids or None
+
+
+def load_available_models(model_ids: list[str] | None = None) -> dict[str, EmotionModel]:
+    """
+    With `model_ids`: loads exactly those (all must be downloaded); the first is the default.
+    Without: loads the default model (required) plus any others that are downloaded.
+    """
+    if model_ids:
+        return {model_id: load_model(model_id) for model_id in model_ids}
     models = {DEFAULT_MODEL_ID: load_model(DEFAULT_MODEL_ID)}
     for model_id, spec in MODEL_SPECS.items():
         if model_id not in models and spec.path.exists():

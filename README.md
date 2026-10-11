@@ -17,15 +17,15 @@ Browser (React + Vite)                          Backend (Python + FastAPI)
 
 ## Run it
 
-You need **Node.js 20+** and **Python 3.11+**. Use two terminals.
+You need **Node.js 22.12+** and **Python 3.11+**. Use two terminals.
 
 **1. Backend** (port 8000)
 
 ```bash
 cd backend
 python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt          # macOS/Linux: .venv/bin/pip
-curl -L -o models/enet_b0_8_best_vgaf.onnx https://github.com/av-savchenko/face-emotion-recognition/raw/main/models/affectnet_emotions/onnx/enet_b0_8_best_vgaf.onnx
+.venv\Scripts\pip install -r requirements-dev.txt      # macOS/Linux: .venv/bin/pip
+.venv\Scripts\python -m app.download_models            # the default emotion model (~16 MB)
 .venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
 ```
 
@@ -39,11 +39,10 @@ npm run dev
 
 Open **http://localhost:5173**, click **Start camera** and allow access.
 
-Optional extra models to compare in the app's **Model** picker (download any of them into `backend/models/`):
+Optional: download the other models to compare them in the app's **Model** picker:
 
 ```bash
-curl -L -o models/enet_b2_8.onnx https://github.com/av-savchenko/face-emotion-recognition/raw/main/models/affectnet_emotions/onnx/enet_b2_8.onnx
-curl -L -o models/emotion-ferplus-8.onnx https://github.com/onnx/models/raw/main/validated/vision/body_analysis/emotion_ferplus/model/emotion-ferplus-8.onnx
+.venv\Scripts\python -m app.download_models all
 ```
 
 The first four backend lines and `npm install` are one-time setup. After that it's just the `uvicorn` command and `npm run dev`. `npm run dev` also copies MediaPipe's runtime into `public/` and downloads the face landmark model (~4 MB) the first time.
@@ -72,9 +71,27 @@ Tips: face the camera, use even lighting, and exaggerate a little. The model rea
 
 *per picture on a laptop CPU. All three answer with the same 8 emotions.
 
+## Deploy (Render)
+
+The whole app deploys as **one web service**. FastAPI serves the built React site and the `/ws` WebSocket from the same address, so there's no CORS setup and no separate static site.
+
+1. Push this folder to a GitHub (or GitLab/Bitbucket) repo.
+2. In the [Render Dashboard](https://dashboard.render.com): **New → Blueprint**, then connect the repo. Render reads [`render.yaml`](render.yaml).
+3. Click **Deploy Blueprint**. The first build takes a few minutes. Then open the `https://….onrender.com` URL.
+
+What happens:
+
+- **Build** ([`build.sh`](build.sh)): installs Python packages, installs Node if needed, runs `npm ci && npm run build` (which also fetches MediaPipe's files), and downloads the emotion model(s).
+- **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Health check: `/health`.
+- **`EMOTION_MODELS`** (in `render.yaml`) picks which models load. The first one is the default. It's set to `hsemotion-b0`, which uses about 120 MB of RAM, to fit the free plan's 512 MB. To get the model picker on a paid plan, use `hsemotion-b0,hsemotion-b2,ferplus`.
+- **HTTPS** is automatic on Render, which the camera requires. The page switches to `wss://` by itself.
+- **Free plan:** the service sleeps after ~15 minutes idle. The next visit takes ~30–60 s to wake it.
+
+To rehearse production locally, run `npm run build` in `frontend/`, then start `uvicorn` in `backend/` without Vite and open http://localhost:8000.
+
 ## Privacy
 
-Video stays in your browser. Only small face crops are sent, to your own local backend. Each crop is analysed in memory and then discarded. Nothing is saved to disk.
+Video stays in the browser. Only small face crops are sent to the app's server, where each crop is analysed in memory and then discarded. Nothing is saved to disk.
 
 ## Tests
 
@@ -86,8 +103,11 @@ cd frontend && npm test                            # face-box math, smoothing (v
 ## Project layout
 
 ```
+render.yaml              Render Blueprint (one web service)
+build.sh                 Render build script
 backend/
-  app/main.py            FastAPI app: GET /health, WebSocket /ws
+  app/main.py            FastAPI app: GET /health, WebSocket /ws, serves frontend/dist
+  app/download_models.py downloads model files (python -m app.download_models [all|ids])
   app/preprocess.py      picture bytes -> each model's input tensor
   app/emotion_model.py   model registry (HSEmotion B0/B2, FER+) + softmax
   models/                *.onnx model files (downloaded, not in git)
@@ -102,7 +122,7 @@ frontend/
 ## Troubleshooting
 
 - **Python crashes on `import onnxruntime` (Windows).** Newer onnxruntime builds need Microsoft Visual C++ Runtime 14.40+. This project pins `onnxruntime==1.20.1`, which works with older runtimes. To use a newer onnxruntime, install the latest *Microsoft Visual C++ Redistributable (x64)* first.
-- **"Emotion model not found".** Run the HSEmotion B0 `curl` line from step 1 inside `backend/`. It's the only required model.
+- **"Emotion model not found".** Run `.venv\Scripts\python -m app.download_models` inside `backend/`.
 - **"Camera permission was blocked".** Click the camera icon in the address bar, allow access, then press *Try again*. Browsers only allow cameras on `localhost` or `https://`.
 - **Backend pill says "disconnected".** Start the backend on port 8000. The page reconnects automatically.
 - **Dots but no bars.** Check that the backend terminal shows `WebSocket /ws [accepted]`.

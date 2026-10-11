@@ -1,7 +1,15 @@
 import numpy as np
 import pytest
 
-from app.emotion_model import DEFAULT_MODEL_ID, LABELS, MODEL_SPECS, load_model, softmax
+from app.emotion_model import (
+    DEFAULT_MODEL_ID,
+    LABELS,
+    MODEL_SPECS,
+    load_available_models,
+    load_model,
+    parse_model_ids,
+    softmax,
+)
 
 
 def test_labels_are_the_8_emotions_in_the_order_the_frontend_uses():
@@ -54,3 +62,27 @@ def test_predict_returns_all_8_emotions_as_probabilities(model):
     assert all(0.0 <= p <= 1.0 for p in emotions.values())
     assert sum(emotions.values()) == pytest.approx(1.0, abs=1e-5)
     assert all(type(p) is float for p in emotions.values())
+
+
+# --- choosing which models to load (EMOTION_MODELS setting) ---
+
+
+def test_parse_model_ids_reads_a_comma_list():
+    assert parse_model_ids("hsemotion-b0, ferplus") == ["hsemotion-b0", "ferplus"]
+
+
+def test_parse_model_ids_empty_means_all_available():
+    assert parse_model_ids("") is None
+    assert parse_model_ids(None) is None
+
+
+def test_parse_model_ids_rejects_unknown_names():
+    with pytest.raises(ValueError, match="nope"):
+        parse_model_ids("hsemotion-b0,nope")
+
+
+def test_load_only_the_listed_models_first_is_default():
+    if not MODEL_SPECS["ferplus"].path.exists():
+        pytest.skip("ferplus not downloaded")
+    models = load_available_models(["ferplus"])
+    assert list(models) == ["ferplus"]
