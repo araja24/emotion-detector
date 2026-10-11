@@ -18,3 +18,7 @@ services:
       # For the model picker on a bigger plan: hsemotion-b0,hsemotion-b2,ferplus
       - key: EMOTION_MODELS
         value: hsemotion-b0
+      # Threads per model. Keep 1 on fractional-CPU plans (free = 0.1 CPU): more threads
+      # just fight over the CPU share and get throttled. Try 2+ only on plans with whole cores.
+      - key: ONNX_THREADS
+        value: "1"

@@ -6,6 +6,7 @@ Three models are supported; any whose file is in models/ gets loaded:
   ferplus       the original small FER+ network (64x64 gray)
 """
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -69,13 +70,39 @@ def softmax(scores: np.ndarray) -> np.ndarray:
     return shifted / shifted.sum()
 
 
+def onnx_threads(value: str | None = None) -> int:
+    """
+    The ONNX_THREADS setting (default 1). onnxruntime otherwise starts one thread per CPU core it
+    can *see* — on a small cloud instance that's the host's many cores, all fighting over a
+    fraction of one CPU and getting throttled. One thread is fastest there; raise it on real cores.
+    """
+    threads = int(value) if value else 1
+    if threads < 1:
+        raise ValueError("ONNX_THREADS must be at least 1")
+    return threads
+
+
 class EmotionModel:
     """One loaded model. Load once (it takes a moment), then call `predict` as often as you like."""
 
-    def __init__(self, spec: ModelSpec, path: Path):
+    def __init__(self, spec: ModelSpec, path: Path, threads: int = 1):
         self.spec = spec
-        self._session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = threads
+        options.inter_op_num_threads = 1
+        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        self._session = ort.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
         self._input_name = self._session.get_inputs()[0].name
+        self.warmed_up = False
+
+    @property
+    def session_options(self) -> ort.SessionOptions:
+        return self._session.get_session_options()
+
+    def warm_up(self) -> None:
+        """Run once on a blank picture: the first run is much slower (memory setup), so pay it at startup."""
+        self.predict(np.zeros((64, 64, 3), dtype=np.uint8))
+        self.warmed_up = True
 
     def predict(self, image_bgr: np.ndarray) -> dict[str, float]:
         """Colour face picture (from `preprocess.decode_image`) -> {emotion: probability} in LABELS order."""
@@ -84,14 +111,19 @@ class EmotionModel:
         return {label: float(by_label[label]) for label in LABELS}
 
 
-def load_model(model_id: str, models_dir: Path = MODELS_DIR) -> EmotionModel:
+def load_model(model_id: str, models_dir: Path = MODELS_DIR, threads: int | None = None) -> EmotionModel:
+    """Load + warm up one model. `threads` defaults to the ONNX_THREADS setting (1 if unset)."""
     spec = MODEL_SPECS[model_id]
     path = Path(models_dir) / spec.filename
     if not path.exists():
         raise FileNotFoundError(
-            f"Emotion model not found at {path}. Download it with:\n  curl -L -o \"{path}\" {spec.url}"
+            f"Emotion model not found at {path}. Download it with:\n"
+            f"  python -m app.download_models {model_id}\n"
+            f"or: curl -L -o \"{path}\" {spec.url}"
         )
-    return EmotionModel(spec, path)
+    model = EmotionModel(spec, path, threads or onnx_threads(os.environ.get("ONNX_THREADS")))
+    model.warm_up()
+    return model
 
 
 def parse_model_ids(value: str | None) -> list[str] | None:

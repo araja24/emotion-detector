@@ -76,7 +76,7 @@ After the milestones:
 ### 2. WebSocket with explicit backpressure instead of HTTP requests
 
 - A persistent binary WebSocket avoids per-request overhead.
-- **Backpressure rule:** never send a new frame until the previous answer arrives. There is also a 120 ms minimum spacing and a 2 s timeout in case a reply is lost. A slow server therefore lowers the update rate instead of building up a queue of stale frames and growing latency.
+- **Backpressure rule:** at most **2 frames in flight** (originally 1; see Decision 8), a 120 ms minimum spacing, and a 2 s timeout in case a reply is lost. A slow server therefore lowers the update rate instead of building up a queue of stale frames and growing latency.
 - The crop is only encoded when it will actually be sent, so no CPU is spent on frames that would be dropped.
 
 ### 3. Send a cropped face, not the full frame
@@ -87,7 +87,8 @@ After the milestones:
 
 ### 4. Smooth on the client with an exponential moving average
 
-- `shown = 0.7 × previous + 0.3 × new`. Raw per-frame predictions flicker every time the user blinks or shifts slightly.
+- Raw per-frame predictions flicker every time the user blinks or shifts slightly, so the bars show a moving average.
+- It started as a fixed `0.7 × previous + 0.3 × new` per answer and was later made **time-based** (τ = 250 ms). The fixed version made the lag depend on how often answers arrived; see Decision 8.
 - Smoothing resets when the model is switched, so the old model's answers don't bleed into the new one's.
 - The bars stay in a **fixed order** instead of re-sorting biggest-first (this departs from the plan). When two scores are close, re-sorting makes rows jump around several times a second.
 
@@ -146,6 +147,29 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
   - `build.sh` installs a pinned Node if the Python build image's Node is missing or too old (Vite 8 requires ≥ 22.12).
 - **Not chosen, for now:** the fully static version (better privacy, free hosting, no cold starts). It's documented as an alternative.
 
+### 8. Fix production lag: time-based smoothing, pipelining, 1-thread inference, warm-up
+
+**Problem:** deployed on Render's free plan, predictions were *correct* but the bars took a couple of seconds to settle on a new expression. Locally they felt instant.
+
+**Diagnosis:** two effects multiplied together.
+1. **Smoothing counted answers, not time.** Moving 30% per answer needs ~6–7 answers to get 90% of the way. At 8 answers/s that's ~0.8 s; at ~2 answers/s it's ~3 s.
+2. **Production produced far fewer answers.** With one frame in flight, the rate is 1 / (network round trip + server time), and both grew in production:
+   - The free instance has about **0.1 CPU**.
+   - onnxruntime defaults to **one thread per visible core**. In a container it sees the host's cores, so many threads fight over a 0.1-CPU quota and get throttled.
+
+**Fixes, each small and independent:**
+
+| Fix | Change | Effect |
+|---|---|---|
+| Time-based smoothing | `amount = 1 − e^(−Δt/τ)`, τ = 250 ms | ~90% catch-up in ~0.6 s whatever the answer rate. Unit-tested: 2 answers 250 ms apart ≡ 8 answers 62.5 ms apart |
+| Pipelining | Up to 2 frames in flight (FIFO, per-frame timeouts) | The next frame travels while the server works on the current one, hiding network latency |
+| Single-thread inference | `intra_op_num_threads = 1`, sequential execution; `ONNX_THREADS` env var to override | Avoids thread contention on fractional-CPU containers |
+| Warm-up | One dummy inference per model at startup | The first user's first frame doesn't pay one-time initialisation cost |
+
+**Verification:** a throwaway harness wrapped the real app to add **100 ms of server time** and **150 ms of reply latency**. Under the same delays the new client reached **6.8 answers/s**, where the old one-in-flight design would be capped at about 3.5 answers/s (≈ 280 ms per answer).
+
+**Trade-off noted:** on a laptop with real cores, one thread is slower (B0 ~19 ms vs ~6–9 ms) but still far within budget. That's why the thread count is a setting, not hard-coded.
+
 ---
 
 ## Problems found and fixed
@@ -178,7 +202,7 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
 
 ## Testing and verification
 
-- **Backend (pytest, 35 tests):**
+- **Backend (pytest, 38 tests):**
   - image decoding and bad input
   - FER+ and ImageNet preprocessing, including a channel-order test (BGR blue must land in the RGB blue channel)
   - numerically stable softmax
@@ -186,7 +210,7 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
   - the WebSocket protocol: hello, inference, model switching, unknown model, bad image, bad command, connection staying open after errors
   - `EMOTION_MODELS` parsing
   - static site serving and WASM MIME type
-- **Frontend (Vitest, 8 tests):** face-box geometry (square, padded, centred, clamped to the frame) and smoothing maths.
+- **Frontend (Vitest, 10 tests):** face-box geometry (square, padded, centred, clamped to the frame) and time-based smoothing, including a rate-independence property test.
 - **End-to-end (Playwright + Edge, with a fake camera):**
   - landmarks drawn on the face
   - bars and badges update
@@ -212,6 +236,8 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
 | Face crop payload | ~5.5 KB at 128×128 (crop size later raised to 224×224) |
 | Server memory (B0 only) | ~119 MB |
 | Throughput fix | 1 → 8 answers/s (Chromium idle-time encoder bottleneck) |
+| Under simulated prod latency (100 ms server + 150 ms network) | 6.8 answers/s with pipelining, vs ~3.5/s one-in-flight |
+| Smoothing catch-up | ~90% in ~0.6 s, independent of answer rate |
 
 *Figures are from local runs on a Windows laptop, not production load tests.*
 
@@ -241,9 +267,10 @@ Pick the 2–4 that fit the role.
 - Built a **real-time facial emotion recognition web app** (React/TypeScript + FastAPI) that tracks a **478-point face mesh** in the browser and streams face crops over **WebSockets** to an **ONNX Runtime** inference service, delivering ~8 emotion predictions/s at ~25 ms round-trip latency.
 - **Diagnosed a 1-frame-per-second throughput cap** by instrumenting the browser pipeline. Traced it to Chromium scheduling `toBlob`/`convertToBlob` encodes in idle time behind a busy `requestAnimationFrame` loop, and replaced them with synchronous encoding for an **8× throughput increase**.
 - **Improved detection of under-represented emotions** (sad, fear, disgust) by replacing a FER+ model trained on a class-imbalanced ~35k-image set with an **EfficientNet-B0 trained on AffectNet** at matching latency (~6 ms CPU). Built a **model registry and live model switcher** to compare models on real input.
-- Designed a **backpressure-aware streaming protocol**: one frame in flight, rate limiting, reply timeouts, and auto-reconnect with exponential backoff, so slow inference lowers the update rate instead of growing latency.
+- Designed a **backpressure-aware streaming protocol**: bounded in-flight frames, rate limiting, reply timeouts, and auto-reconnect with exponential backoff, so slow inference lowers the update rate instead of growing latency.
+- **Cut perceived production lag from seconds to ~0.6 s.** Diagnosed it as per-sample smoothing multiplied by low throughput on a 0.1-CPU host. Fixed it with time-based smoothing, request pipelining (**~2× throughput** under simulated latency), single-threaded ONNX inference to avoid CPU-quota contention, and model warm-up.
 - Fixed a **React StrictMode race condition** in which a stale WebSocket's close handler cleared its replacement's reference, silently dropping every frame.
-- Wrote **43 automated tests** (pytest + Vitest) test-first, plus **Playwright end-to-end checks** using a synthetic camera stream, covering the inference protocol, preprocessing correctness, reconnection and UI state.
+- Wrote **48 automated tests** (pytest + Vitest) test-first, plus **Playwright end-to-end checks** using a synthetic camera stream, covering the inference protocol, preprocessing correctness, reconnection and UI state.
 - Packaged the app as a **single Render web service** using an infrastructure-as-code Blueprint. It serves the static frontend and WebSocket API from one origin, with configurable model loading to fit a 512 MB instance (~120 MB measured).
 
 ## Interview talking points

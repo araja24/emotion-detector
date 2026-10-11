@@ -7,6 +7,7 @@ from app.emotion_model import (
     MODEL_SPECS,
     load_available_models,
     load_model,
+    onnx_threads,
     parse_model_ids,
     softmax,
 )
@@ -86,3 +87,27 @@ def test_load_only_the_listed_models_first_is_default():
         pytest.skip("ferplus not downloaded")
     models = load_available_models(["ferplus"])
     assert list(models) == ["ferplus"]
+
+
+# --- running well on small (fractional-CPU) servers ---
+
+
+def test_onnx_threads_setting():
+    assert onnx_threads(None) == 1  # default: one thread, so threads don't fight over a tiny CPU share
+    assert onnx_threads("4") == 4
+    with pytest.raises(ValueError):
+        onnx_threads("0")
+
+
+def test_model_uses_the_configured_thread_count():
+    if not MODEL_SPECS[DEFAULT_MODEL_ID].path.exists():
+        pytest.skip("default model not downloaded")
+    options = load_model(DEFAULT_MODEL_ID, threads=1).session_options
+    assert options.intra_op_num_threads == 1
+    assert options.inter_op_num_threads == 1
+
+
+def test_model_is_warmed_up_when_loaded():
+    if not MODEL_SPECS[DEFAULT_MODEL_ID].path.exists():
+        pytest.skip("default model not downloaded")
+    assert load_model(DEFAULT_MODEL_ID).warmed_up

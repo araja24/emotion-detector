@@ -16,7 +16,13 @@ export type SocketStatus = 'connecting' | 'open' | 'closed'
 
 /** At most one picture per this many ms (~8 per second). */
 const SEND_INTERVAL_MS = 120
-/** If an answer never comes back, stop waiting after this long. */
+/**
+ * How many pictures may be on their way / being analysed at once. 2 lets the
+ * next picture travel while the server works on the current one, hiding the
+ * network round trip on a real deployment; more would just queue stale frames.
+ */
+const MAX_IN_FLIGHT = 2
+/** If an answer never comes back, stop waiting for it after this long. */
 const REPLY_TIMEOUT_MS = 2000
 const MAX_RECONNECT_DELAY_MS = 10_000
 
@@ -27,15 +33,18 @@ function socketUrl() {
 
 /**
  * Keeps one WebSocket open to the backend (reconnecting by itself if it
- * drops) and sends face pictures — but only one at a time: a new picture is
- * sent only after the previous answer has arrived.
+ * drops) and sends face pictures — but never more than MAX_IN_FLIGHT
+ * unanswered at once, so a slow server lowers the update rate instead of
+ * building up a queue of old frames.
  */
 export function useEmotionSocket() {
   const [status, setStatus] = useState<SocketStatus>('connecting')
   const [result, setResult] = useState<EmotionResult | null>(null)
   const [answersPerSecond, setAnswersPerSecond] = useState(0)
   const socketRef = useRef<WebSocket | null>(null)
-  const busySinceRef = useRef<number | null>(null)
+  /** Send times of pictures still waiting for an answer, oldest first (answers arrive in order). */
+  const inFlightRef = useRef<number[]>([])
+  const lastAnswerAtRef = useRef(0)
   const lastSentRef = useRef(0)
   const answerTimesRef = useRef<number[]>([])
   const smoothedRef = useRef<EmotionScores | null>(null)
@@ -56,7 +65,7 @@ export function useEmotionSocket() {
 
       socket.onopen = () => {
         retryDelay = 1000
-        busySinceRef.current = null
+        inFlightRef.current = []
         setStatus('open')
       }
       socket.onmessage = (event) => {
@@ -79,13 +88,14 @@ export function useEmotionSocket() {
           return
         }
         if ('emotions' in message) {
-          busySinceRef.current = null
+          inFlightRef.current.shift()
           // An answer from the previous model can still be in flight right after a switch.
           if (message.model !== wantedModelRef.current && wantedModelRef.current !== null) return
-          const smoothed = smoothScores(smoothedRef.current, message.emotions)
-          smoothedRef.current = smoothed
-          setResult({ raw: message.emotions, smoothed, top: topEmotion(smoothed), ms: message.ms })
           const now = performance.now()
+          const smoothed = smoothScores(smoothedRef.current, message.emotions, now - lastAnswerAtRef.current)
+          smoothedRef.current = smoothed
+          lastAnswerAtRef.current = now
+          setResult({ raw: message.emotions, smoothed, top: topEmotion(smoothed), ms: message.ms })
           answerTimesRef.current = [...answerTimesRef.current.filter((t) => now - t < 1000), now]
           return
         }
@@ -95,12 +105,12 @@ export function useEmotionSocket() {
           smoothedRef.current = null
           return
         }
-        busySinceRef.current = null // an error reply also ends the wait
+        inFlightRef.current.shift() // an error reply also answers one picture
       }
       socket.onclose = () => {
         // An old socket closing late must not wipe out its replacement.
         if (socketRef.current === socket) socketRef.current = null
-        busySinceRef.current = null
+        inFlightRef.current = []
         if (closedByUs) return
         setStatus('closed')
         retryTimer = window.setTimeout(connect, retryDelay)
@@ -132,20 +142,24 @@ export function useEmotionSocket() {
     const socket = socketRef.current
     const now = performance.now()
     if (!socket || socket.readyState !== WebSocket.OPEN) return
-    const busySince = busySinceRef.current
-    if (busySince !== null && now - busySince < REPLY_TIMEOUT_MS) return
+    // Forget pictures whose answer is overdue (lost), so we never get stuck.
+    const inFlight = inFlightRef.current.filter((sentAt) => now - sentAt < REPLY_TIMEOUT_MS)
+    inFlightRef.current = inFlight
+    if (inFlight.length >= MAX_IN_FLIGHT) return
     if (now - lastSentRef.current < SEND_INTERVAL_MS) return
 
-    busySinceRef.current = now
+    inFlight.push(now)
     lastSentRef.current = now
+    const forget = () => {
+      const index = inFlightRef.current.indexOf(now)
+      if (index !== -1) inFlightRef.current.splice(index, 1)
+    }
     makePicture()
       .then((blob) => {
         if (socket.readyState === WebSocket.OPEN) socket.send(blob)
-        else busySinceRef.current = null
+        else forget()
       })
-      .catch(() => {
-        busySinceRef.current = null
-      })
+      .catch(forget)
   }, [])
 
   /** Ask the backend to use a different emotion model (remembered across reconnects). */

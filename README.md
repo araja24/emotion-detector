@@ -85,7 +85,8 @@ What happens:
 - **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Health check: `/health`.
 - **`EMOTION_MODELS`** (in `render.yaml`) picks which models load. The first one is the default. It's set to `hsemotion-b0`, which uses about 120 MB of RAM, to fit the free plan's 512 MB. To get the model picker on a paid plan, use `hsemotion-b0,hsemotion-b2,ferplus`.
 - **HTTPS** is automatic on Render, which the camera requires. The page switches to `wss://` by itself.
-- **Free plan:** the service sleeps after ~15 minutes idle. The next visit takes ~30–60 s to wake it.
+- **`ONNX_THREADS`** (default `1`) sets threads per model. Keep it at 1 on fractional-CPU plans, where extra threads just fight over the CPU share. Try 2 or more only with whole cores.
+- **Free plan:** the service sleeps after ~15 minutes idle. The next visit takes ~30–60 s to wake it. It also has only ~0.1 CPU, so expect fewer emotion updates per second than locally. The bars stay responsive because smoothing is time-based and up to 2 frames are pipelined.
 
 To rehearse production locally, run `npm run build` in `frontend/`, then start `uvicorn` in `backend/` without Vite and open http://localhost:8000.
 
