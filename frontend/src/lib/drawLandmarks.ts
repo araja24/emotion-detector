@@ -4,14 +4,16 @@ type Connection = { start: number; end: number }
 
 export type DrawOptions = {
   showDots: boolean
-  showLines: boolean
+  /** The mesh: faint tessellation plus the bright feature contours. */
+  showMesh: boolean
+  /** Mood colour for the contours and feature dots. */
+  accent: string
 }
 
-const MESH_COLOR = 'rgba(34, 211, 238, 0.18)'
-const CONTOUR_COLOR = 'rgba(34, 211, 238, 0.9)'
-const DOT_COLOR = '#67e8f9'
+const MESH_COLOR = 'rgba(255, 255, 255, 0.15)'
+const DOT_COLOR = 'rgba(255, 255, 255, 0.7)'
 
-/** The main face features we trace with bright lines. */
+/** The main face features we trace in the mood colour. */
 const CONTOURS: Connection[] = [
   ...FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
   ...FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW,
@@ -22,6 +24,7 @@ const CONTOURS: Connection[] = [
   ...FaceLandmarker.FACE_LANDMARKS_RIGHT_IRIS,
   ...FaceLandmarker.FACE_LANDMARKS_LIPS,
 ]
+const CONTOUR_POINTS = [...new Set(CONTOURS.flatMap(({ start, end }) => [start, end]))]
 
 function strokeConnections(
   ctx: CanvasRenderingContext2D,
@@ -41,39 +44,24 @@ function strokeConnections(
   ctx.stroke()
 }
 
-/**
- * Writes e.g. "😀 Happy 82%" just above the forehead. The canvas is mirrored
- * with CSS, so we mirror the text too — two flips make it readable again.
- */
-export function drawEmotionLabel(ctx: CanvasRenderingContext2D, face: NormalizedLandmark[], text: string) {
-  const { width, height } = ctx.canvas
-  let minX = 1
-  let maxX = 0
-  let minY = 1
-  for (const point of face) {
-    minX = Math.min(minX, point.x)
-    maxX = Math.max(maxX, point.x)
-    minY = Math.min(minY, point.y)
-  }
-  const fontSize = Math.round(Math.max(16, width / 40))
-  const x = ((minX + maxX) / 2) * width
-  const y = Math.max(minY * height - fontSize * 0.6, fontSize * 1.4)
-
-  ctx.save()
-  ctx.translate(x, y)
-  ctx.scale(-1, 1)
-  ctx.font = `600 ${fontSize}px system-ui, sans-serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'bottom'
-  const padX = fontSize * 0.5
-  const boxWidth = ctx.measureText(text).width + padX * 2
-  ctx.fillStyle = 'rgba(11, 15, 20, 0.75)'
+function fillDots(
+  ctx: CanvasRenderingContext2D,
+  face: NormalizedLandmark[],
+  indexes: Iterable<number>,
+  radius: number,
+  width: number,
+  height: number,
+) {
   ctx.beginPath()
-  ctx.roundRect(-boxWidth / 2, -fontSize * 1.35, boxWidth, fontSize * 1.5, fontSize * 0.4)
+  for (const index of indexes) {
+    const point = face[index]
+    if (!point) continue
+    const x = point.x * width
+    const y = point.y * height
+    ctx.moveTo(x + radius, y)
+    ctx.arc(x, y, radius, 0, Math.PI * 2)
+  }
   ctx.fill()
-  ctx.fillStyle = '#e6edf3'
-  ctx.fillText(text, 0, 0)
-  ctx.restore()
 }
 
 /**
@@ -85,29 +73,23 @@ export function drawLandmarks(ctx: CanvasRenderingContext2D, face: NormalizedLan
   // Scale strokes with the video resolution so they look the same at 480p or 1080p.
   const unit = Math.max(1, width / 640)
 
-  if (options.showLines) {
-    ctx.lineWidth = unit * 0.6
+  if (options.showMesh) {
+    ctx.lineWidth = unit * 0.5
     ctx.strokeStyle = MESH_COLOR
     strokeConnections(ctx, face, FaceLandmarker.FACE_LANDMARKS_TESSELATION, width, height)
 
-    ctx.lineWidth = unit * 1.5
-    ctx.strokeStyle = CONTOUR_COLOR
-    ctx.shadowColor = CONTOUR_COLOR
-    ctx.shadowBlur = unit * 6
+    ctx.lineWidth = unit * 1.3
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = options.accent
+    ctx.globalAlpha = 0.9
     strokeConnections(ctx, face, CONTOURS, width, height)
-    ctx.shadowBlur = 0
+    ctx.globalAlpha = 1
   }
 
   if (options.showDots) {
-    const radius = unit * 1.3
     ctx.fillStyle = DOT_COLOR
-    ctx.beginPath()
-    for (const point of face) {
-      const x = point.x * width
-      const y = point.y * height
-      ctx.moveTo(x + radius, y)
-      ctx.arc(x, y, radius, 0, Math.PI * 2)
-    }
-    ctx.fill()
+    fillDots(ctx, face, face.keys(), unit * 1.05, width, height)
+    ctx.fillStyle = options.accent
+    fillDots(ctx, face, CONTOUR_POINTS, unit * 1.5, width, height)
   }
 }

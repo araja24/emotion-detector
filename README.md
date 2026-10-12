@@ -1,6 +1,6 @@
-# Emotion Detector
+# Mien — Emotion Detector
 
-Real-time facial emotion detection in the browser. Turn on your webcam and the app:
+Real-time facial emotion detection in the browser, with the **Mien** UI ("one light per mood"). Turn on your webcam and the app:
 
 - draws **478 face landmarks** (dots + mesh) on your face, live, ~30 FPS
 - shows how confident it is that you look **neutral, happy, surprised, sad, angry, disgusted, fearful or contemptuous**, about 8 times a second
@@ -52,10 +52,13 @@ The first four backend lines and `npm install` are one-time setup. After that it
 | Control | What it does |
 |---|---|
 | **Start / Stop camera** | Turns the webcam on/off (the camera light goes off too). |
-| **Dots** / **Lines** | Show or hide the 478 landmark dots / the face mesh and contours. |
-| **Model** | Switch emotion model live (only shown when more than one is downloaded). |
-| **Pause / Resume** | Freezes the picture and the analysis; the bars keep the last reading. |
-| Status pills | Camera, Face (found / not found) and Backend (connected / disconnected). |
+| **Pause / Resume** | Freezes the picture and the analysis; the reading stays on screen. |
+| **Dots** / **Mesh** | Show or hide the 478 landmark dots / the face mesh and feature contours. |
+| **Model** | *Balanced* (HSEmotion B0), *Large* (B2), *Classic* (FER+). Only shown when more than one is loaded. |
+| **Retry now** | Shown when the backend is unreachable. Reconnects immediately instead of waiting for the countdown. |
+| Status pills | Camera, Face (found / not found) and Backend (connected / connecting / disconnected). |
+
+The leading emotion's colour tints the page aura, the stage rim, the logo, the face contours and the floating label. **Right now** shows the big reading, real reads/second and a one-line description. **Last 10 seconds** is a strip of which emotion led, sampled 4× a second. The stage shows real FPS and real send→answer latency.
 
 The backend can be stopped and restarted at any time. The page reconnects by itself.
 
@@ -115,8 +118,8 @@ backend/
 frontend/
   src/App.tsx            wires everything together
   src/hooks/             useCamera, useFaceLandmarker, useEmotionSocket
-  src/components/        CameraView, Controls, EmotionBars, StatusBadge
-  src/lib/               drawLandmarks, cropFace, smoothing, emotions
+  src/components/        Header, Stage, ControlBar, Readout, icons
+  src/lib/               drawLandmarks, cropFace, smoothing, emotions, stage (label maths), trail
   scripts/setup-assets.mjs  copies MediaPipe wasm + downloads the landmark model
 ```
 

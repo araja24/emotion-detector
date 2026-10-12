@@ -11,7 +11,7 @@ This document records what was built, the engineering decisions made along the w
 | | |
 |---|---|
 | **What** | Real-time emotion recognition from a webcam: face landmarks + 8-class emotion confidence |
-| **Frontend** | React 19, TypeScript, Vite 8, MediaPipe Face Landmarker (WebAssembly/WebGL), Canvas 2D |
+| **Frontend** | React 19, TypeScript, Vite 8, MediaPipe Face Landmarker (WebAssembly/WebGL), Canvas 2D. "Mien" UI designed in Claude Design and implemented in code |
 | **Backend** | Python 3.12, FastAPI, WebSockets, ONNX Runtime, OpenCV, NumPy |
 | **ML models** | HSEmotion EfficientNet-B0 (default), HSEmotion EfficientNet-B2, FER+ (all ONNX) |
 | **Testing** | pytest (35 tests), Vitest (8 tests), Playwright end-to-end scripts against Edge |
@@ -61,6 +61,8 @@ After the milestones:
 
 8. **Model upgrade.** FER+ was replaced by HSEmotion as the default, and a live model picker was added to compare models.
 9. **Deployment.** Single-service Render Blueprint, build script, production static serving, configurable model loading.
+10. **Production latency fixes.** Time-based smoothing, pipelining, single-thread inference and model warm-up (Decision 8).
+11. **Mien redesign.** The UI was redesigned in Claude Design as "Mien" and implemented against the real data (Decision 9).
 
 ---
 
@@ -170,6 +172,29 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
 
 **Trade-off noted:** on a laptop with real cores, one thread is slower (B0 ~19 ms vs ~6–9 ms) but still far within budget. That's why the thread count is a setting, not hard-coded.
 
+### 9. Implement the "Mien" design against real data, not mock data
+
+The app was redesigned in Claude Design as **Mien**: a dark UI where the leading emotion's colour ("one light per mood") tints the aura, stage rim, logo, mesh and a floating label, plus a 10-second history strip and dedicated empty, no-face and offline screens.
+
+**How the mockup mapped onto the real system:**
+
+| In the mockup | In the app |
+|---|---|
+| Animated illustrated face | The real mirrored camera feed with the MediaPipe mesh, contours tinted in the mood colour |
+| Floating label at a fixed spot | The label **follows the real face**. Landmarks are mapped through the same `object-fit: cover` scale, crop and mirror as the video (pure, unit-tested `faceAnchor`), and the DOM node is positioned imperatively each frame to avoid 30 React renders a second |
+| Simulated fps / latency / "8 reads/sec" | Real tracker FPS, real **send→answer latency** (new measurement in the socket hook) and real answers/second |
+| Fake "Trying again in 3s…" | The countdown follows the real exponential-backoff reconnect timer; **Retry now** really reconnects |
+| History strip of scripted values | Sampled 4×/s from the live reading (pure, unit-tested `trail` module) |
+| Model picker "Fast / Balanced / Accurate" | Renamed **Balanced / Large / Classic**: the mockup's names implied speed and accuracy rankings that the benchmarks didn't support |
+
+**Other details:**
+- Mood colours flow through CSS custom properties (`--accent` plus alpha variants), so every glow cross-fades with plain CSS transitions.
+- Paused state remembers whether a face was present, because the tracker stops while paused.
+- The phone layout switches to a 3:4 stage and a centred label, and the label is kept clear of the LIVE chip.
+- `prefers-reduced-motion` turns animations off.
+
+**Verified** in Edge at desktop and phone widths across the empty, live, paused, no-face and offline → recovery states, with no console errors.
+
 ---
 
 ## Problems found and fixed
@@ -210,7 +235,7 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
   - the WebSocket protocol: hello, inference, model switching, unknown model, bad image, bad command, connection staying open after errors
   - `EMOTION_MODELS` parsing
   - static site serving and WASM MIME type
-- **Frontend (Vitest, 10 tests):** face-box geometry (square, padded, centred, clamped to the frame) and time-based smoothing, including a rate-independence property test.
+- **Frontend (Vitest, 18 tests):** face-box geometry (square, padded, centred, clamped to the frame), time-based smoothing (including a rate-independence property test), label anchoring through the mirrored cover-crop, and the history-trail state machine.
 - **End-to-end (Playwright + Edge, with a fake camera):**
   - landmarks drawn on the face
   - bars and badges update
@@ -270,7 +295,8 @@ Pick the 2–4 that fit the role.
 - Designed a **backpressure-aware streaming protocol**: bounded in-flight frames, rate limiting, reply timeouts, and auto-reconnect with exponential backoff, so slow inference lowers the update rate instead of growing latency.
 - **Cut perceived production lag from seconds to ~0.6 s.** Diagnosed it as per-sample smoothing multiplied by low throughput on a 0.1-CPU host. Fixed it with time-based smoothing, request pipelining (**~2× throughput** under simulated latency), single-threaded ONNX inference to avoid CPU-quota contention, and model warm-up.
 - Fixed a **React StrictMode race condition** in which a stale WebSocket's close handler cleared its replacement's reference, silently dropping every frame.
-- Wrote **48 automated tests** (pytest + Vitest) test-first, plus **Playwright end-to-end checks** using a synthetic camera stream, covering the inference protocol, preprocessing correctness, reconnection and UI state.
+- Wrote **56 automated tests** (pytest + Vitest) test-first, plus **Playwright end-to-end checks** using a synthetic camera stream, covering the inference protocol, preprocessing correctness, reconnection and UI state.
+- **Implemented a Claude Design mockup ("Mien") against live data.** Mood-reactive theming via CSS custom properties, a label that tracks the real face through the mirrored video crop, real latency and FPS telemetry, and a reconnect countdown tied to the actual backoff timer.
 - Packaged the app as a **single Render web service** using an infrastructure-as-code Blueprint. It serves the static frontend and WebSocket API from one origin, with configurable model loading to fit a 512 MB instance (~120 MB measured).
 
 ## Interview talking points

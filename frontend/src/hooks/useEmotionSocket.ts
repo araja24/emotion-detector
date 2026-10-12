@@ -10,8 +10,11 @@ type ServerMessage =
   | { model: string } // "switched model" confirmation
   | { error: string }
 
-/** `smoothed` is what we show; `raw` is the backend's latest answer as-is. */
-export type EmotionResult = { raw: EmotionScores; smoothed: EmotionScores; top: Emotion; ms: number }
+/**
+ * `smoothed` is what we show; `raw` is the backend's latest answer as-is.
+ * `ms` = model time on the server; `latencyMs` = picture sent → answer received.
+ */
+export type EmotionResult = { raw: EmotionScores; smoothed: EmotionScores; top: Emotion; ms: number; latencyMs: number }
 export type SocketStatus = 'connecting' | 'open' | 'closed'
 
 /** At most one picture per this many ms (~8 per second). */
@@ -51,6 +54,9 @@ export function useEmotionSocket() {
   const [models, setModels] = useState<ModelInfo[]>([])
   const [activeModel, setActiveModel] = useState<string | null>(null)
   const wantedModelRef = useRef<string | null>(null)
+  /** When the next automatic reconnect will happen (Date.now() ms), while disconnected. */
+  const [retryAt, setRetryAt] = useState<number | null>(null)
+  const reconnectNowRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     let closedByUs = false
@@ -66,6 +72,7 @@ export function useEmotionSocket() {
       socket.onopen = () => {
         retryDelay = 1000
         inFlightRef.current = []
+        setRetryAt(null)
         setStatus('open')
       }
       socket.onmessage = (event) => {
@@ -88,14 +95,15 @@ export function useEmotionSocket() {
           return
         }
         if ('emotions' in message) {
-          inFlightRef.current.shift()
+          const sentAt = inFlightRef.current.shift()
           // An answer from the previous model can still be in flight right after a switch.
           if (message.model !== wantedModelRef.current && wantedModelRef.current !== null) return
           const now = performance.now()
+          const latencyMs = sentAt === undefined ? 0 : now - sentAt
           const smoothed = smoothScores(smoothedRef.current, message.emotions, now - lastAnswerAtRef.current)
           smoothedRef.current = smoothed
           lastAnswerAtRef.current = now
-          setResult({ raw: message.emotions, smoothed, top: topEmotion(smoothed), ms: message.ms })
+          setResult({ raw: message.emotions, smoothed, top: topEmotion(smoothed), ms: message.ms, latencyMs })
           answerTimesRef.current = [...answerTimesRef.current.filter((t) => now - t < 1000), now]
           return
         }
@@ -114,10 +122,19 @@ export function useEmotionSocket() {
         if (closedByUs) return
         setStatus('closed')
         retryTimer = window.setTimeout(connect, retryDelay)
+        setRetryAt(Date.now() + retryDelay)
         retryDelay = Math.min(retryDelay * 2, MAX_RECONNECT_DELAY_MS)
       }
     }
     connect()
+
+    // "Retry now": skip the wait. Only acts while we're actually waiting to retry.
+    reconnectNowRef.current = () => {
+      if (closedByUs || socketRef.current) return
+      window.clearTimeout(retryTimer)
+      setRetryAt(null)
+      connect()
+    }
 
     const statsTimer = window.setInterval(() => {
       const now = performance.now()
@@ -169,5 +186,7 @@ export function useEmotionSocket() {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ model: modelId }))
   }, [])
 
-  return { status, result, answersPerSecond, trySend, models, activeModel, setModel }
+  const reconnectNow = useCallback(() => reconnectNowRef.current(), [])
+
+  return { status, result, answersPerSecond, trySend, models, activeModel, setModel, retryAt, reconnectNow }
 }
