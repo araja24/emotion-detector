@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { EMOTIONS, EMOTION_INFO, type Emotion, type EmotionScores } from '../lib/emotions'
 import { OFFLINE, type TrailEntry } from '../lib/trail'
 import { LockIcon } from './icons'
@@ -21,10 +22,10 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
       <div>
         <div className="eyebrow">
           <span>Right now</span>
-          <span>{readsPerSecond} reads / sec</span>
+          <span className="eyebrow__meta">{readsPerSecond} reads/s</span>
         </div>
         <div className="headline">
-          <span className="headline__name" style={{ color: headline.color }}>
+          <span className="headline__name" style={{ '--headline-color': headline.color } as CSSProperties}>
             {headline.name}
           </span>
           {headline.pct && <span className="headline__pct">{headline.pct}</span>}
@@ -32,16 +33,16 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
         <p className="voice">{headline.voice}</p>
       </div>
 
-      <ul className="rows" aria-label="Confidence per emotion">
+      <ul className={`rows${reading ? ' rows--reading' : ''}`} aria-label="Confidence per emotion">
         {EMOTIONS.map((emotion) => {
           const { label, color } = EMOTION_INFO[emotion]
           const value = scores?.[emotion] ?? 0
           const percent = Math.round(value * 100)
           const isTop = reading && emotion === top
           return (
-            <li key={emotion} className={`row${isTop ? ' row--top' : ''}`}>
+            <li key={emotion} className={`row${isTop ? ' row--top' : ''}`} style={{ '--c': color } as CSSProperties}>
               <span className="row__name">
-                <span className="row__dot" style={{ background: color }} aria-hidden="true" />
+                <span className="row__dot" aria-hidden="true" />
                 {label}
               </span>
               <span
@@ -54,7 +55,7 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
               >
                 <span
                   className="row__fill"
-                  style={{ width: `${(value * 100).toFixed(1)}%`, background: reading ? color : '#4A505C' }}
+                  style={{ width: `${(value * 100).toFixed(1)}%` }}
                 />
               </span>
               <span className="row__pct">{showNumbers ? `${percent}%` : '-'}</span>
@@ -66,7 +67,7 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
       <div>
         <div className="eyebrow">
           <span>Last 10 seconds</span>
-          <span>now</span>
+          <span className="eyebrow__meta">now</span>
         </div>
         <div className="trail" aria-hidden="true">
           {trail.map((entry, i) => {
@@ -74,14 +75,10 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
             return (
               <span
                 key={i}
-                className="trail__bar"
+                className={`trail__bar${entry.index === OFFLINE ? ' trail__bar--offline' : ''}`}
                 style={{
                   height: isEmotion ? `${Math.round(30 + entry.confidence * 70)}%` : '18%',
-                  background: isEmotion
-                    ? EMOTION_INFO[EMOTIONS[entry.index]].color
-                    : entry.index === OFFLINE
-                      ? '#3A3F4B'
-                      : '#22252D',
+                  background: isEmotion ? EMOTION_INFO[EMOTIONS[entry.index]].color : undefined,
                 }}
               />
             )

@@ -73,7 +73,7 @@ export function RetryIcon() {
 
 export function UnlinkIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" {...stroke} stroke="#FF8A8A" style={{ flex: 'none' }}>
+    <svg className="offline__icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
       <path d="M9 17H7A5 5 0 0 1 7 7h2" />
       <path d="M15 7h2a5 5 0 0 1 4 8" />
       <line x1="8" y1="12" x2="12" y2="12" />
@@ -84,7 +84,7 @@ export function UnlinkIcon() {
 
 export function SearchFaceIcon() {
   return (
-    <svg width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="#FFB547" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+    <svg className="notice__icon" width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
       <path d="M4 16V10a6 6 0 0 1 6-6h6M40 4h6a6 6 0 0 1 6 6v6M52 40v6a6 6 0 0 1-6 6h-6M16 52h-6a6 6 0 0 1-6-6v-6" />
       <ellipse cx="28" cy="28" rx="11" ry="14" strokeDasharray="0.1 5.5" />
     </svg>

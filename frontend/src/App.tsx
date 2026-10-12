@@ -194,11 +194,11 @@ function App() {
   }
 
   const topPct = reading && result && top ? `${Math.round(result.smoothed[top] * 100)}%` : ''
-  let headline = { name: 'Ready', color: '#ECEEF2', pct: '', voice: 'Turn on your camera to start reading.' }
-  if (isLive && !faceSeen) headline = { name: 'Hello?', color: '#ECEEF2', pct: '', voice: 'No face in frame right now.' }
+  let headline = { name: 'Ready', color: 'var(--text)', pct: '', voice: 'Turn on your camera to start reading.' }
+  if (isLive && !faceSeen) headline = { name: 'Hello?', color: 'var(--text)', pct: '', voice: 'No face in frame right now.' }
   else if (isLive && !backendOpen)
-    headline = { name: 'On hold', color: '#AEB4BF', pct: '', voice: 'Model unreachable. Last reading shown, faded.' }
-  else if (isLive && !reading) headline = { name: 'Reading…', color: '#ECEEF2', pct: '', voice: 'Hold still for a moment.' }
+    headline = { name: 'On hold', color: 'var(--text-3)', pct: '', voice: 'Model unreachable. Last reading shown, faded.' }
+  else if (isLive && !reading) headline = { name: 'Reading…', color: 'var(--text)', pct: '', voice: 'Hold still for a moment.' }
   else if (reading && top) {
     const info = EMOTION_INFO[top]
     headline = { name: info.label, color: info.color, pct: topPct, voice: paused ? 'Paused on this frame.' : info.voice }
@@ -215,7 +215,7 @@ function App() {
 
   const rootStyle = {
     '--accent': accent,
-    '--accent-rim': isLive ? withAlpha(accent, 0.35) : 'rgba(255,255,255,0.08)',
+    '--accent-rim': isLive ? withAlpha(accent, 0.35) : 'var(--line)',
     '--accent-ring': withAlpha(accent, 0.07),
     '--accent-glow': withAlpha(accent, 0.53),
   } as CSSProperties
@@ -227,7 +227,7 @@ function App() {
       <div className="app__inner">
         <Header accent={accent} pills={pills} />
 
-        <div className="app__main">
+        <main className="app__main">
           <section className="camera" aria-label="Camera">
             <Stage
               videoRef={camera.videoRef}
@@ -273,7 +273,7 @@ function App() {
             top={top}
             trail={trail}
           />
-        </div>
+        </main>
       </div>
     </div>
   )
