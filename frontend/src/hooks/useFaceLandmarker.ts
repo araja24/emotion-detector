@@ -19,13 +19,13 @@ async function createLandmarker(): Promise<FaceLandmarker> {
   try {
     return await FaceLandmarker.createFromOptions(fileset, options('GPU'))
   } catch {
-    // Some machines/browsers have no usable WebGL — the CPU is slower but works.
+    // Some machines/browsers have no usable WebGL. The CPU is slower but works.
     return await FaceLandmarker.createFromOptions(fileset, options('CPU'))
   }
 }
 
 /**
- * Loads MediaPipe's Face Landmarker once, then — while `running` is true —
+ * Loads MediaPipe's Face Landmarker once, then, while `running` is true,
  * looks at every new video frame and hands the 478 face points to `onFrame`.
  *
  * The points go straight to a callback (not React state) because they change

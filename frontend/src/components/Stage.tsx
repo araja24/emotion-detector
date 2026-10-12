@@ -83,7 +83,7 @@ export function Stage(props: Props) {
               {props.cameraError}
             </p>
           ) : (
-            <p className="empty__text">Mien reads eight expressions as they happen, about eight times a second.</p>
+            <p className="empty__text">Emotion Detector reads eight expressions as they happen, about eight times a second.</p>
           )}
           <button
             type="button"
@@ -112,7 +112,7 @@ export function Stage(props: Props) {
             </h2>
             <p className="notice__text">
               {notice === 'noFace' &&
-                'Look toward the camera and find a little light. Mien will pick you back up on its own.'}
+                'Look toward the camera and find a little light. It’ll pick you back up on its own.'}
               {notice === 'loading' && 'Loading the face tracker. This takes a moment the first time.'}
               {notice === 'trackerError' && 'Try reloading the page. If it keeps happening, try another browser.'}
             </p>

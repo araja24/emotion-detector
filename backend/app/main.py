@@ -22,7 +22,7 @@ FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load the models once at startup — not once per picture.
+    # Load the models once at startup, not once per picture.
     # EMOTION_MODELS (e.g. "hsemotion-b0") limits which ones, to save memory on small servers.
     app.state.models = load_available_models(parse_model_ids(os.environ.get("EMOTION_MODELS")))
     yield

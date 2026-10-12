@@ -73,7 +73,7 @@ def softmax(scores: np.ndarray) -> np.ndarray:
 def onnx_threads(value: str | None = None) -> int:
     """
     The ONNX_THREADS setting (default 1). onnxruntime otherwise starts one thread per CPU core it
-    can *see* — on a small cloud instance that's the host's many cores, all fighting over a
+    can *see*. On a small cloud instance that's the host's many cores, all fighting over a
     fraction of one CPU and getting throttled. One thread is fastest there; raise it on real cores.
     """
     threads = int(value) if value else 1

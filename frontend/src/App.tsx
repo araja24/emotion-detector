@@ -183,7 +183,7 @@ function App() {
   }
 
   const topPct = reading && result && top ? `${Math.round(result.smoothed[top] * 100)}%` : ''
-  let headline = { name: 'Ready', color: '#ECEEF2', pct: '', voice: 'Turn on your camera and Mien starts reading.' }
+  let headline = { name: 'Ready', color: '#ECEEF2', pct: '', voice: 'Turn on your camera to start reading.' }
   if (isLive && !faceSeen) headline = { name: 'Hello?', color: '#ECEEF2', pct: '', voice: 'No face in frame right now.' }
   else if (isLive && !backendOpen)
     headline = { name: 'On hold', color: '#AEB4BF', pct: '', voice: 'Model unreachable. Last reading shown, faded.' }
@@ -194,7 +194,7 @@ function App() {
   }
 
   const fps = `${landmarker.fps} fps`
-  let statsText = `${fps} · ${result ? Math.round(result.latencyMs) : '—'} ms latency · 478 pts`
+  let statsText = `${fps} · ${result ? Math.round(result.latencyMs) : '-'} ms latency · 478 pts`
   if (paused) statsText = 'Frozen · 0 fps'
   else if (!faceSeen) statsText = `${fps} · searching…`
   else if (!backendOpen) statsText = `${fps} · model offline`

@@ -1,6 +1,6 @@
 /** How much bigger than the dots the crop is, so the whole face (forehead, chin) fits. */
 const PADDING = 1.15
-/** Size of the picture we send — matches the default HSEmotion B0 model's 224x224 input. */
+/** Size of the picture we send. Matches the default HSEmotion B0 model's 224x224 input. */
 const CROP_SIZE = 224
 const JPEG_QUALITY = 0.85
 

@@ -1,4 +1,4 @@
-/** Stroke icons from the Mien design. All decorative: the text next to them carries the meaning. */
+/** Stroke icons from the Mien design mockup. All decorative: the text next to them carries the meaning. */
 
 export function LogoMark({ color }: { color: string }) {
   return (
@@ -50,6 +50,14 @@ export function PauseIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <rect x="6" y="4.5" width="4" height="15" rx="1" />
       <rect x="14" y="4.5" width="4" height="15" rx="1" />
+    </svg>
+  )
+}
+
+export function ChevronDownIcon() {
+  return (
+    <svg className="select__chevron" viewBox="0 0 24 24" aria-hidden="true" {...stroke} strokeWidth={2.5}>
+      <path d="M6 9l6 6 6-6" />
     </svg>
   )
 }

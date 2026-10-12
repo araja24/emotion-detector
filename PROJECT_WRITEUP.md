@@ -174,7 +174,7 @@ The newest onnxruntime (1.31) crashed the Python process with a segfault **on im
 
 ### 9. Implement the "Mien" design against real data, not mock data
 
-The app was redesigned in Claude Design as **Mien**: a dark UI where the leading emotion's colour ("one light per mood") tints the aura, stage rim, logo, mesh and a floating label, plus a 10-second history strip and dedicated empty, no-face and offline screens.
+The app was redesigned in Claude Design under the working name **Mien** (the shipped app keeps the name *Emotion Detector*): a dark UI where the leading emotion's colour ("one light per mood") tints the aura, stage rim, logo, mesh and a floating label, plus a 10-second history strip and dedicated empty, no-face and offline screens.
 
 **How the mockup mapped onto the real system:**
 

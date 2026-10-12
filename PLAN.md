@@ -1,4 +1,4 @@
-# PLAN.md — Real-Time Face Emotion Detector
+# PLAN.md: Real-Time Face Emotion Detector
 
 ---
 
@@ -66,7 +66,7 @@ Think of it like a restaurant:
 ### Why split it like this?
 
 - **Dots in the browser:** dots must move *perfectly smoothly* with your face (30+ times a second). Sending every frame to a server and waiting for an answer would make the dots laggy. MediaPipe runs right in the browser, fast, using your graphics card.
-- **Feelings in the backend:** this is the "brain" part. Python is the best language for AI models, and it lets us swap in a better brain later without touching the website. Feelings don't need to update 30 times a second — 8 times a second already looks live.
+- **Feelings in the backend:** this is the "brain" part. Python is the best language for AI models, and it lets us swap in a better brain later without touching the website. Feelings don't need to update 30 times a second. 8 times a second already looks live.
 
 ---
 
@@ -135,38 +135,38 @@ emotion-detector/
 
 ## 4. How it works, step by step (the life of one frame)
 
-### Step 1 — Turn on the camera 📷
+### Step 1: Turn on the camera 📷
 `useCamera.ts` calls `navigator.mediaDevices.getUserMedia({ video: true })`.
 The browser pops up "Allow camera?". If yes, we get a live video stream and plug it into a `<video>` tag.
 
 > 🍼 Browsers only allow cameras on `https://` or on `localhost`. Since we develop on `localhost`, it just works.
 
-### Step 2 — Find the face dots 🔵
+### Step 2: Find the face dots 🔵
 `useFaceLandmarker.ts` loads MediaPipe once. Then, on every screen refresh (`requestAnimationFrame`, ~60 times/sec), it hands the current video frame to MediaPipe and gets back **478 points**, each with an `x` and `y` between 0 and 1 (0 = left/top edge, 1 = right/bottom edge).
 
-### Step 3 — Draw the dots 🎨
+### Step 3: Draw the dots 🎨
 `drawLandmarks.ts` draws on a transparent `<canvas>` sitting exactly on top of the `<video>` (like a clear sticker sheet over a photo).
 - Multiply each `x` by the canvas width and `y` by the height → that's where the dot goes.
 - Draw small dots for all points, and thin lines along the eyebrows, eyes, lips and face outline (MediaPipe gives us these line lists: `FaceLandmarker.FACE_LANDMARKS_LIPS`, etc.), so it looks like a cool face mesh.
 - The video is mirrored (`transform: scaleX(-1)`) so it feels like a mirror; the canvas is mirrored the same way so dots line up.
 
-### Step 4 — Cut out the face ✂️
+### Step 4: Cut out the face ✂️
 `cropFace.ts` finds the smallest/largest `x` and `y` of all the dots → that's a box around your face. Make the box a bit bigger (+15%) and square, then copy just that part of the video onto a small hidden canvas (128×128) and turn it into a JPEG.
 
 > 🍼 Why only the face? Sending a tiny face picture (~4 KB) is much faster than the whole camera picture (~100 KB+), and the brain only needs the face anyway.
 
-### Step 5 — Send it to the kitchen 📨
+### Step 5: Send it to the kitchen 📨
 `useEmotionSocket.ts` keeps one WebSocket open to `ws://localhost:5173/ws` (Vite forwards it to the backend on port 8000).
 - At most **one picture every ~120 ms** (about 8 per second).
 - **Never send a new one while still waiting** for the last answer. This stops a traffic jam if the backend is slow ("one plate in the window at a time").
 - If no face is found, send nothing and show "No face found 👀".
 
-### Step 6 — The kitchen thinks 🧠 (backend)
+### Step 6: The kitchen thinks 🧠 (backend)
 `main.py` has a WebSocket door at `/ws`. For every picture it receives:
 1. `preprocess.py`: decode JPEG → make it **gray** → shrink to **64×64** → shape it as `[1, 1, 64, 64]` (that is the exact shape the FER+ brain was trained on).
 2. `emotion_model.py`: run the brain with ONNX Runtime → get **8 raw scores** (big numbers, not percentages yet).
 3. **Softmax**: a math trick that turns raw scores into percentages that add up to 100%.
-   > 🍼 Softmax is like sharing 100 candies among 8 kids — the kid with the biggest score gets the most candies, but every kid gets at least a crumb.
+   > 🍼 Softmax is like sharing 100 candies among 8 kids: the kid with the biggest score gets the most candies, but every kid gets at least a crumb.
 4. Send back JSON:
    ```json
    { "emotions": { "neutral": 0.11, "happiness": 0.82, "surprise": 0.04, "sadness": 0.01,
@@ -175,7 +175,7 @@ The browser pops up "Allow camera?". If yes, we get a live video stream and plug
    ```
 The brain is loaded **once** when the server starts (not once per picture), so each answer takes only a few milliseconds.
 
-### Step 7 — Show the feelings 📊
+### Step 7: Show the feelings 📊
 `EmotionBars.tsx` shows 8 bars sorted biggest-first, with the emoji, name and `%`. The top feeling is highlighted, and its name is also written above the face on the canvas.
 
 `smoothing.ts` mixes the new answer with the old one (`shown = 0.7 × old + 0.3 × new`, called an *exponential moving average*).
@@ -187,38 +187,38 @@ The brain is loaded **once** when the server starts (not once per picture), so e
 
 Each milestone ends with something you can **see working**.
 
-### Milestone 1 — Project skeleton
+### Milestone 1: Project skeleton
 - `npm create vite@latest frontend -- --template react-ts`, then `npm install @mediapipe/tasks-vision`.
 - `backend/`: create a Python virtual environment (`python -m venv .venv`), then install `fastapi uvicorn[standard] onnxruntime opencv-python-headless numpy pytest`.
 - Add `GET /health` → `{"ok": true}`.
 - ✅ See it: `npm run dev` shows the Vite page; `http://localhost:8000/health` shows `{"ok": true}`.
 
-### Milestone 2 — Camera on screen
+### Milestone 2: Camera on screen
 - `useCamera.ts` + `CameraView.tsx`. Handle "user said no" and "no camera" with a friendly message.
 - ✅ See it: you see yourself, mirrored.
 
-### Milestone 3 — Face dots
+### Milestone 3: Face dots
 - Download `face_landmarker.task` into `public/models/`.
 - `useFaceLandmarker.ts` (running mode `"VIDEO"`, `numFaces: 1`, GPU delegate) + `drawLandmarks.ts`.
 - ✅ See it: dots and lines stick to your face as you move.
 
-### Milestone 4 — The feelings brain (backend only)
+### Milestone 4: The feelings brain (backend only)
 - Download `emotion-ferplus-8.onnx` (from the ONNX Model Zoo) into `backend/models/`.
 - Write `preprocess.py` and `emotion_model.py` with the labels in this exact order:
   `neutral, happiness, surprise, sadness, anger, disgust, fear, contempt`.
 - Write tests first (see §7), then make them pass.
 - ✅ See it: `pytest` is green.
 
-### Milestone 5 — Connect waiter and kitchen
+### Milestone 5: Connect waiter and kitchen
 - `/ws` endpoint in `main.py`; `cropFace.ts` + `useEmotionSocket.ts` in the frontend; Vite proxy for `/ws` → `http://localhost:8000` with `ws: true`.
 - Auto-reconnect if the backend restarts (try again after 1s, 2s, 4s…).
 - ✅ See it: browser DevTools → Network → WS shows messages going back and forth.
 
-### Milestone 6 — The confidence bars
+### Milestone 6: The confidence bars
 - `EmotionBars.tsx`, `smoothing.ts`, `StatusBadge.tsx`, top emotion label on the canvas.
 - ✅ See it: smile → Happy goes up; open your mouth wide → Surprise goes up.
 
-### Milestone 7 — Polish
+### Milestone 7: Polish
 - Toggle buttons: show/hide dots, show/hide lines, pause camera.
 - Small FPS counter (dots FPS + emotion answers/sec).
 - Nice look: dark background, glowing cyan dots, smooth bar animation (`transition: width 150ms`).
@@ -241,13 +241,13 @@ Each milestone ends with something you can **see working**.
 ## 7. How we check it works (testing)
 
 **Backend (automatic, `pytest`):**
-- `test_preprocess.py` — any-size color JPEG in → array of shape `(1, 1, 64, 64)`, type `float32`.
-- `test_emotion_model.py` — on a sample face picture, returns all 8 labels, each between 0 and 1, adding up to ~1.0.
+- `test_preprocess.py`: any-size color JPEG in → array of shape `(1, 1, 64, 64)`, type `float32`.
+- `test_emotion_model.py`: on a sample face picture, returns all 8 labels, each between 0 and 1, adding up to ~1.0.
 - WebSocket test with FastAPI's `TestClient`: send a JPEG → get JSON with `emotions`; send garbage bytes → get `{"error": "bad_image"}` and connection stays open.
 
 **Frontend (automatic, `vitest`):**
-- `smoothing.ts` — mixing old + new gives the expected numbers.
-- `cropFace.ts` box math — dots in → correct square box out, clamped inside the video edges.
+- `smoothing.ts`: mixing old + new gives the expected numbers.
+- `cropFace.ts` box math: dots in → correct square box out, clamped inside the video edges.
 
 **By hand (end to end):**
 1. Terminal 1: `cd backend && uvicorn app.main:app --reload --port 8000`
@@ -263,7 +263,7 @@ Each milestone ends with something you can **see working**.
 ## 8. Later ideas (not in version 1)
 
 - Multiple faces at once.
-- Better emotion brain (e.g. HSEmotion EfficientNet ONNX) — swap the file in `backend/models/` + the labels list.
+- Better emotion brain (e.g. HSEmotion EfficientNet ONNX): swap the file in `backend/models/` + the labels list.
 - A little chart of your feelings over the last 30 seconds.
 - Deploy: frontend on any static host, backend in a Docker container (must use `https://`/`wss://` for the camera to work).
 
@@ -271,14 +271,14 @@ Each milestone ends with something you can **see working**.
 
 ## 9. Tiny dictionary 📖
 
-- **Frontend** — the part you see in the browser.
-- **Backend** — the part on a server you don't see that does work for the frontend.
-- **Landmark / node** — one dot on a special spot of your face (tip of nose, corner of mouth…).
-- **Model** — a computer brain that already learned something from lots of examples.
-- **ONNX** — a common file format for these brains so any program can run them.
-- **Inference** — asking the brain a question and getting an answer.
-- **Confidence** — how sure the brain is, from 0% (no idea) to 100% (totally sure).
-- **Softmax** — the math that turns raw brain scores into percentages that add up to 100%.
-- **WebSocket** — an always-open phone line between browser and server.
-- **FPS** — frames per second: how many times per second something updates.
+- **Frontend**: the part you see in the browser.
+- **Backend**: the part on a server you don't see that does work for the frontend.
+- **Landmark / node**: one dot on a special spot of your face (tip of nose, corner of mouth…).
+- **Model**: a computer brain that already learned something from lots of examples.
+- **ONNX**: a common file format for these brains so any program can run them.
+- **Inference**: asking the brain a question and getting an answer.
+- **Confidence**: how sure the brain is, from 0% (no idea) to 100% (totally sure).
+- **Softmax**: the math that turns raw brain scores into percentages that add up to 100%.
+- **WebSocket**: an always-open phone line between browser and server.
+- **FPS**: frames per second: how many times per second something updates.
 

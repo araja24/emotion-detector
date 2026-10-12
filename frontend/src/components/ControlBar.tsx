@@ -1,6 +1,6 @@
 import type { ModelInfo } from '../hooks/useEmotionSocket'
 import { MODEL_LABELS } from '../lib/emotions'
-import { CameraIcon, PauseIcon, PlayIcon } from './icons'
+import { CameraIcon, ChevronDownIcon, PauseIcon, PlayIcon } from './icons'
 
 type Props = {
   live: boolean
@@ -39,18 +39,21 @@ export function ControlBar(props: Props) {
 
       {props.models.length > 1 && (
         <div className="controls__model">
-          <label htmlFor="mien-model">Model</label>
-          <select
-            id="mien-model"
-            value={props.activeModel ?? ''}
-            onChange={(e) => props.onModelChange(e.target.value)}
-          >
-            {props.models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {MODEL_LABELS[m.id] ?? m.name}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="model-select">Model</label>
+          <span className="select">
+            <select
+              id="model-select"
+              value={props.activeModel ?? ''}
+              onChange={(e) => props.onModelChange(e.target.value)}
+            >
+              {props.models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {MODEL_LABELS[m.id] ?? m.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon />
+          </span>
         </div>
       )}
     </div>

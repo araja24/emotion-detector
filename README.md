@@ -1,6 +1,6 @@
-# Mien — Emotion Detector
+# Emotion Detector
 
-Real-time facial emotion detection in the browser, with the **Mien** UI ("one light per mood"). Turn on your webcam and the app:
+Real-time facial emotion detection in the browser, with a mood-reactive UI ("one light per mood", designed in Claude Design as *Mien*). Turn on your webcam and the app:
 
 - draws **478 face landmarks** (dots + mesh) on your face, live, ~30 FPS
 - shows how confident it is that you look **neutral, happy, surprised, sad, angry, disgusted, fearful or contemptuous**, about 8 times a second

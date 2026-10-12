@@ -8,7 +8,7 @@ type Props = {
   scores: EmotionScores | null
   /** Bars in colour + highlighted top row only while actually reading. */
   reading: boolean
-  /** Show numbers (vs "—") — false before the camera starts or with no face. */
+  /** Show numbers (vs "-"); false before the camera starts or with no face. */
   showNumbers: boolean
   top: Emotion | null
   trail: TrailEntry[]
@@ -57,7 +57,7 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
                   style={{ width: `${(value * 100).toFixed(1)}%`, background: reading ? color : '#4A505C' }}
                 />
               </span>
-              <span className="row__pct">{showNumbers ? `${percent}%` : '—'}</span>
+              <span className="row__pct">{showNumbers ? `${percent}%` : '-'}</span>
             </li>
           )
         })}
@@ -93,7 +93,7 @@ export function Readout({ headline, readsPerSecond, scores, reading, showNumbers
         <LockIcon />
         <span>
           Your video stays in this browser. Only small face crops go to the server, are read in memory and never
-          saved. Mien reads expressions, not feelings — it can be wrong.
+          saved. It reads expressions, not feelings, and it can be wrong.
         </span>
       </p>
     </aside>

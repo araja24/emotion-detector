@@ -36,7 +36,7 @@ function socketUrl() {
 
 /**
  * Keeps one WebSocket open to the backend (reconnecting by itself if it
- * drops) and sends face pictures — but never more than MAX_IN_FLIGHT
+ * drops) and sends face pictures, but never more than MAX_IN_FLIGHT
  * unanswered at once, so a slow server lowers the update rate instead of
  * building up a queue of old frames.
  */

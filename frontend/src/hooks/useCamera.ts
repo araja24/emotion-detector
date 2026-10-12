@@ -52,7 +52,7 @@ export function useCamera() {
         setErrorMessage('No camera was found. Plug one in and try again.')
       } else if (name === 'NotReadableError') {
         setStatus('error')
-        setErrorMessage('The camera is busy — another app might be using it.')
+        setErrorMessage('The camera is busy. Another app might be using it.')
       } else {
         setStatus('error')
         setErrorMessage(err instanceof Error ? err.message : 'Could not start the camera.')

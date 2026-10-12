@@ -11,7 +11,7 @@ export function Header({ accent, pills }: Props) {
     <header className="header">
       <div className="logo">
         <LogoMark color={accent} />
-        <span className="logo__word">mien</span>
+        <span className="logo__word">Emotion Detector</span>
         <span className="logo__tag">reads your face, live</span>
       </div>
       <ul className="pills" aria-label="Status">

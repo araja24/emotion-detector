@@ -4,12 +4,12 @@ export type Emotion = (typeof EMOTIONS)[number]
 export type EmotionScores = Record<Emotion, number>
 
 /**
- * Mien's "one light per mood": whichever emotion leads tints the aura, stage
+ * "One light per mood" (from the Mien design): whichever emotion leads tints the aura, stage
  * rim, logo, mesh and floating label. `voice` is the one-line reading in the panel.
  */
 export const EMOTION_INFO: Record<Emotion, { label: string; emoji: string; color: string; voice: string }> = {
   neutral: { label: 'Neutral', emoji: '😐', color: '#A9B4C4', voice: 'Resting face. Very composed.' },
-  happiness: { label: 'Happy', emoji: '😊', color: '#FFC94D', voice: 'That’s a real smile — eyes and all.' },
+  happiness: { label: 'Happy', emoji: '😊', color: '#FFC94D', voice: 'That’s a real smile, eyes and all.' },
   surprise: { label: 'Surprised', emoji: '😮', color: '#FF9A4D', voice: 'Eyebrows up. Something caught you off guard.' },
   sadness: { label: 'Sad', emoji: '😢', color: '#5FA2FF', voice: 'Corners down. Rough moment?' },
   anger: { label: 'Angry', emoji: '😠', color: '#FF6161', voice: 'Brow knitted tight. Deep breath?' },
