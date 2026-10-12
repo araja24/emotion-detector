@@ -904,6 +904,49 @@ button {
   .logo__tag {
     display: none;
   }
+
+  /* Phones: frosted-glass blur over a video that changes 30x a second has to be
+     recomputed every frame. Use near-opaque fills instead and smaller glows. */
+  .chip,
+  .notice,
+  .offline,
+  .readout {
+    backdrop-filter: none;
+  }
+
+  .chip {
+    background: rgba(11, 12, 16, 0.82);
+  }
+
+  .notice {
+    background: rgba(11, 12, 16, 0.88);
+  }
+
+  .readout {
+    background: rgba(20, 22, 28, 0.94);
+  }
+
+  .aura {
+    filter: blur(70px);
+  }
+
+  .aura--top {
+    width: 420px;
+    height: 420px;
+    top: -180px;
+    right: -160px;
+  }
+
+  .aura--bottom {
+    width: 360px;
+    height: 360px;
+    bottom: -200px;
+    left: -180px;
+  }
+
+  .stage__aura {
+    filter: blur(48px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

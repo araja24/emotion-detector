@@ -5,22 +5,35 @@ const WASM_PATH = '/mediapipe/wasm'
 const MODEL_PATH = '/models/face_landmarker.task'
 
 export type LandmarkerStatus = 'loading' | 'ready' | 'error'
+export type Delegate = 'GPU' | 'CPU'
 
 /** Called once per analysed video frame; `null` means "no face in this frame". */
 export type FrameCallback = (face: NormalizedLandmark[] | null, video: HTMLVideoElement) => void
 
-async function createLandmarker(): Promise<FaceLandmarker> {
+/** `?delegate=cpu` or `?delegate=gpu` in the page URL forces one (handy for comparing on a device). */
+function forcedDelegate(): Delegate | null {
+  const value = new URLSearchParams(location.search).get('delegate')?.toUpperCase()
+  return value === 'GPU' || value === 'CPU' ? value : null
+}
+
+async function createLandmarker(): Promise<{ landmarker: FaceLandmarker; delegate: Delegate }> {
   const fileset = await FilesetResolver.forVisionTasks(WASM_PATH)
-  const options = (delegate: 'GPU' | 'CPU') => ({
+  const create = async (delegate: Delegate) => ({
+    landmarker: await FaceLandmarker.createFromOptions(fileset, options(delegate)),
+    delegate,
+  })
+  const options = (delegate: Delegate) => ({
     baseOptions: { modelAssetPath: MODEL_PATH, delegate },
     runningMode: 'VIDEO' as const,
     numFaces: 1,
   })
+  const forced = forcedDelegate()
+  if (forced) return create(forced)
   try {
-    return await FaceLandmarker.createFromOptions(fileset, options('GPU'))
+    return await create('GPU')
   } catch {
     // Some machines/browsers have no usable WebGL. The CPU is slower but works.
-    return await FaceLandmarker.createFromOptions(fileset, options('CPU'))
+    return await create('CPU')
   }
 }
 
@@ -39,6 +52,7 @@ export function useFaceLandmarker(
   const [status, setStatus] = useState<LandmarkerStatus>('loading')
   const [faceFound, setFaceFound] = useState(false)
   const [fps, setFps] = useState(0)
+  const [delegate, setDelegate] = useState<Delegate | null>(null)
   const landmarkerRef = useRef<FaceLandmarker | null>(null)
   const onFrameRef = useRef(onFrame)
 
@@ -50,12 +64,13 @@ export function useFaceLandmarker(
   useEffect(() => {
     let cancelled = false
     createLandmarker()
-      .then((landmarker) => {
+      .then(({ landmarker, delegate }) => {
         if (cancelled) {
           landmarker.close()
           return
         }
         landmarkerRef.current = landmarker
+        setDelegate(delegate)
         setStatus('ready')
       })
       .catch((err) => {
@@ -115,5 +130,5 @@ export function useFaceLandmarker(
     }
   }, [running, status, videoRef])
 
-  return { status, faceFound, fps }
+  return { status, faceFound, fps, delegate }
 }

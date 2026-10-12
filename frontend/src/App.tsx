@@ -31,6 +31,18 @@ function App() {
   const labelRef = useRef<HTMLDivElement>(null)
   const labelTailRef = useRef<HTMLSpanElement>(null)
   const lastFaceRef = useRef<NormalizedLandmark[] | null>(null)
+  /** The label's size, kept up to date by a ResizeObserver so the per-frame code never forces a layout. */
+  const labelSizeRef = useRef({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const label = labelRef.current
+    if (!label) return
+    const observer = new ResizeObserver(() => {
+      labelSizeRef.current = { width: label.offsetWidth, height: label.offsetHeight }
+    })
+    observer.observe(label)
+    return () => observer.disconnect()
+  }, [])
 
   const [showDots, setShowDots] = useState(true)
   const [showMesh, setShowMesh] = useState(true)
@@ -61,8 +73,7 @@ function App() {
     const stageSize = { width: stage.clientWidth, height: stage.clientHeight }
     const mode = stageSize.width < NARROW_STAGE_PX ? 'center' : 'side'
     const anchor = faceAnchor(face, { width: video.videoWidth, height: video.videoHeight }, stageSize, mode)
-    const width = label.offsetWidth
-    const height = label.offsetHeight
+    const { width, height } = labelSizeRef.current
     const wantedLeft = mode === 'center' ? anchor.x - width / 2 : anchor.x - LABEL_TAIL_INSET
     const left = Math.min(Math.max(wantedLeft, 12), stageSize.width - width - 12)
     const top = Math.max(anchor.y - height - 16, LABEL_MIN_TOP)
@@ -193,7 +204,7 @@ function App() {
     headline = { name: info.label, color: info.color, pct: topPct, voice: paused ? 'Paused on this frame.' : info.voice }
   }
 
-  const fps = `${landmarker.fps} fps`
+  const fps = `${landmarker.fps} fps${landmarker.delegate ? ` (${landmarker.delegate})` : ''}`
   let statsText = `${fps} · ${result ? Math.round(result.latencyMs) : '-'} ms latency · 478 pts`
   if (paused) statsText = 'Frozen · 0 fps'
   else if (!faceSeen) statsText = `${fps} · searching…`

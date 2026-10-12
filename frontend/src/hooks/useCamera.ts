@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/**
+ * Phones get 640x480: the stage is small there, and every frame's pixels are uploaded
+ * to the GPU for face tracking, so a 1080p phone camera costs a lot for nothing.
+ */
+function videoConstraints(): MediaTrackConstraints {
+  const phone = window.matchMedia('(pointer: coarse) and (max-width: 1024px)').matches
+  return phone
+    ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+    : { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+}
+
 export type CameraStatus = 'idle' | 'starting' | 'live' | 'denied' | 'no-camera' | 'error'
 
 /**
@@ -31,10 +42,7 @@ export function useCamera() {
     setStatus('starting')
     setErrorMessage(null)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: false,
-      })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints(), audio: false })
       streamRef.current = stream
       const video = videoRef.current
       if (video) {
